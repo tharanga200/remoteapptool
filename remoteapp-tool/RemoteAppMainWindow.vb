@@ -22,7 +22,12 @@ Public Class RemoteAppMainWindow
             End
         End Try
 
-        Me.Text = My.Application.Info.Title & " " & My.Application.Info.Version.ToString & " (" & System.Net.Dns.GetHostName & ")"
+        Dim VersionString = My.Application.Info.Version.ToString
+        If Not My.Application.Info.Description = Nothing Then
+            VersionString = My.Application.Info.Version.ToString & " " & My.Application.Info.Description.ToLower
+        End If
+
+        Me.Text = My.Application.Info.Title & " " & versionstring & " (" & System.Net.Dns.GetHostName & ")"
         If Not My.Computer.Keyboard.ShiftKeyDown Then
             If Not My.Settings.MainWindowWidth < Me.MinimumSize.Width Then Me.Width = My.Settings.MainWindowWidth
             If Not My.Settings.MainWindowHeight < Me.MinimumSize.Height Then Me.Height = My.Settings.MainWindowHeight
@@ -163,5 +168,51 @@ Public Class RemoteAppMainWindow
     Private Sub NewRemoteAppadvancedToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles NewRemoteAppadvancedToolStripMenuItem.Click
         RemoteAppEditWindow.CreateRemoteApp(True)
         ReloadApps()
+    End Sub
+
+    Private Sub RemoteAppMainWindow_FormClosing(sender As Object, e As FormClosingEventArgs) Handles MyBase.FormClosing
+
+        ' Check to see if this is a pre-release or debug version.
+        ' This information comes from the project assembly description
+
+        Dim AssemblyDescription = My.Application.Info.Description
+
+        If Not AssemblyDescription = "" Then
+
+            ' Ask the user if the application worked correctly
+            Dim ReleaseType = AssemblyDescription
+            If ReleaseType.StartsWith("rc", True, Nothing) Then
+                ReleaseType = "Release Candidate"
+            End If
+
+            Dim ProblemYesNo = MessageBox.Show("This is a """ & ReleaseType.ToLower & """ of RemoteApp Tool." & vbCrLf & vbCrLf & "Did it work correctly?", AssemblyDescription.ToUpper & " version feedback", MessageBoxButtons.YesNo, MessageBoxIcon.Question)
+
+            ' If the user had a problem, ask for more info.
+            ' Put the responses + version # into an array, ready to be inserted into a URL
+
+            Dim FeedbackResponses(3) As String
+            Dim VersionString = My.Application.Info.Version.ToString & " " & My.Application.Info.Description.ToString
+
+            If ProblemYesNo = DialogResult.No Then
+                'Dim FeedbackText = InputBox("Please describe the problem you experienced:", "Problem description")
+                FeedbackResponses = {VersionString, "No", ""}
+            ElseIf ProblemYesNo = DialogResult.Yes Then
+                FeedbackResponses = {VersionString, "Yes", ""}
+            End If
+
+            ' Build the Google Form URL
+
+            Dim FormUrl = "https://docs.google.com/forms/d/e/1FAIpQLSet6jkUvj23n9IK0L_aM8ckv40BfcI9e8VTdfcDdz2XtU-ERA/viewform?usp=pp_url&entry.64442428=" &
+                FeedbackResponses(0) &
+                "&entry.1809958859=" &
+                FeedbackResponses(1) &
+                "&entry.612126075=" &
+                FeedbackResponses(2)
+
+            ' Send the user to the filled Google Form to submit
+
+            System.Diagnostics.Process.Start(FormUrl)
+
+        End If
     End Sub
 End Class
